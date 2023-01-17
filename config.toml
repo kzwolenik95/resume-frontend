@@ -1,0 +1,8 @@
+baseURL = 'http://example.org/'
+languageCode = 'en-us'
+title = 'My New Hugo Site'
+
+[deployment]
+[[deployment.targets]]
+name = "s3_deployment"
+URL = "s3://kzwolenik.com?region=us-east-1"

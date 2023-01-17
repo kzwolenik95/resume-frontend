@@ -1,0 +1,90 @@
+.date {
+    font-weight: bold;
+  }
+  .flex-container-rows {
+    flex-wrap: wrap;
+    display: flex;
+    justify-content: center;
+    flex-direction: rows;
+    height: 100%;
+  }
+  .flex-container-rows > div {
+    flex: 1 0 calc(25% - 3px);
+    padding-right: 3px;
+  }
+  .flex-container-cols {
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    height: 100%;
+  }
+  .flex-container-cols > div {
+    padding: 0 5%;
+  }
+  body {
+    font-family: "Hahmlet";
+  }
+  .outer {
+    width: 950px;
+    margin: 20px auto;
+  }
+  .wrapper {
+    background-color: #eeecf1;
+    padding: 10px 80px;
+    border-top: 8px solid #aeaeae;
+    border-bottom: 3px solid #aeaeae;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 10px;
+    grid-auto-rows: minmax(100px, auto);
+  }
+  .one {
+    grid-column: 1/6;
+    grid-row: 1;
+    padding: 10px;
+  }
+  .two {
+    grid-column: 6/9;
+    grid-row: 1;
+  }
+  .narrow {
+    grid-column: 1/2;
+    padding-top: 0.5em;
+  }
+  .wide {
+    grid-column: 2/9;
+  }
+  .grid-item:before {
+    display: block;
+    content: "";
+    position: relative;
+    top: -6.5px;
+    width: 133.8%;
+    right: 33.9%;
+    border-top: solid 2px #949494;
+  }
+.work-name {
+  font-weight: bold;
+  font-size: large;
+}
+ .company-name {
+  font-style: italic;
+}
+.work-description {
+  padding-top: 0.5em;
+  font-size: small;
+  white-space: pre-line;
+}
+.period {
+  float: right;
+  padding-right: 0.5em;
+}
+.bold {
+  font-weight: bold;
+}
+a:link {
+  color: #5E7DA1;
+}
+a:visited {
+  color: #526D8D;
+}

@@ -1,0 +1,86 @@
+{{ define "main" }}
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Hahmlet">
+<link rel="stylesheet" href="/styles.css">
+<div class="outer">
+    <div class="wrapper">
+        <div class="one">
+            <h1>{{ $.Params.name }}</h1>
+            <h2>{{ $.Params.pro_title }}</h2>
+        </div>
+        <div class="two">
+            <div class='flex-container-cols'>
+                {{ range $.Params.personal_data }}
+                {{ if .link }}
+                <div><a href="{{ .link }}">{{ .value }}</a></div>
+                {{ else }}
+                <div>{{ .value }}</div>
+                {{ end }}
+                {{ end }}
+            </div>
+        </div>
+        {{ if $.Params.certificates }}
+        <div class="narrow">Certifications</div>
+        <div class="wide grid-item">
+            <div class='flex-container-rows'>
+                {{ range $.Params.certificates }}
+                <div>
+                    <div class="date">{{ .date }}</div> {{ .name }}
+                </div>
+                {{ end }}
+            </div>
+        </div>
+        {{ end }}
+        <div class="narrow">Skills</div>
+        <div class="wide grid-item">
+            <div class='flex-container-rows'>
+                {{ range $.Params.skills }}
+                <div>{{ . }}</div>
+                {{ end }}
+            </div>
+        </div>
+        <div class="narrow">Projects</div>
+        <div class="wide grid-item">
+            {{ range $.Params.projects }}
+            <span class="work-name">{{ .name }}</span>
+            <div class="work-description">{{ .description }}</div>
+            {{ end }}
+        </div>
+        <div class="narrow">Contributions</div>
+        <div class="wide grid-item">
+            {{ range $.Params.contributions }}
+            <span class="work-name"><a href="{{ .link }}">{{ .project_name }}</a></span>
+            <div class="work-description">{{ .description }}</div>
+            {{ end }}
+        </div>
+        <div class="narrow">Work history</div>
+        <div class="wide grid-item">
+            {{ range $.Params.work_history }}
+            <span class="work-name">{{ .name }}</span><span class="period">{{ .period }}</span>
+            <div class="company-name">{{ .company }}</div>
+            <div class="work-description">{{ .description }}</div>
+            {{ end }}
+        </div>
+        <div class="narrow">Education</div>
+        <div class="wide grid-item">
+            {{ range $.Params.education }}
+            <span class="work-name">{{ .career }}</span><span class="period">{{ .period }}</span>
+            <div class="company-name">{{ .school }}</div>
+            {{ end }}
+        </div>
+        <div class="narrow">Languages</div>
+        <div class="wide grid-item">
+            {{ range $.Params.languages }}
+            <div><span class="bold">{{ .name }}</span>— <span>{{ .level }}</span></div>
+            {{ end }}
+        </div>
+        <div class="narrow">Interests</div>
+        <div class="wide grid-item">
+            <div class='flex-container-rows'>
+                {{ range $.Params.hobbies }}
+                <div>{{ . }}</div>
+                {{ end }}
+            </div>
+        </div>
+    </div>
+</div>
+{{ end }}
