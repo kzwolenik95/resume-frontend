@@ -1,4 +1,13 @@
 {{ define "main" }}
+<script async>
+    var request = new XMLHttpRequest();
+    request.open('POST', 'https://ebwtlohff7.execute-api.us-east-1.amazonaws.com/beta/health');
+    xhr.onload = function () {
+        // do something to response
+        console.log(this.responseText);
+    };
+    xhr.send();
+</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Hahmlet">
 <link rel="stylesheet" href="/styles.css">
 <div class="outer">
