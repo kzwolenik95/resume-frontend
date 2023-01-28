@@ -1,7 +1,7 @@
 {{ define "main" }}
 <script async>
     var request = new XMLHttpRequest();
-    request.open('POST', 'https://ebwtlohff7.execute-api.us-east-1.amazonaws.com/beta/health');
+    request.open('POST', 'https://ebwtlohff7.execute-api.us-east-1.amazonaws.com/beta/increment');
     request.onload = function () {
         // do something to response
         console.log(this.responseText);
