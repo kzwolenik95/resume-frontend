@@ -1,13 +1,6 @@
 {{ define "main" }}
-<script async>
-    var request = new XMLHttpRequest();
-    request.open('POST', 'https://ebwtlohff7.execute-api.us-east-1.amazonaws.com/beta/increment');
-    request.onload = function () {
-        // do something to response
-        console.log(this.responseText);
-    };
-    request.send();
-</script>
+<div id="counter">This page has been visited X times!</div>
+<script async language="javascript" type="text/javascript" src="{{ "/counter_script.js" }}"></script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Hahmlet">
 <link rel="stylesheet" href="/styles.css">
 <div class="outer">
