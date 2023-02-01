@@ -1,13 +1,20 @@
-function countVisit() {
+function countVisit(callback) {
   if (getCookie('visited') != "true") {
-    incrementCounter();
+    incrementCounter(callback);
     setCookie('visited', 'true', 1440)
+  } else {
+    callback();
   }
 }
 
-function incrementCounter() {
+function incrementCounter(callback) {
   var request = new XMLHttpRequest();
   request.open('POST', 'https://ebwtlohff7.execute-api.us-east-1.amazonaws.com/beta/increment');
+  request.onreadystatechange = function () {
+    if (request.readyState == XMLHttpRequest.DONE) {
+      callback();
+    }
+  }
   request.send();
 }
 
