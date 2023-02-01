@@ -63,6 +63,10 @@ function setCounterValue() {
   document.getElementById('counter').innerText = `This page has been visited ${counter_value} times!`
 }
 
+function a() {
+  getCounterValue(setCounterValue)
+}
+
 window.onload = function () {
-  countVisit(getCounterValue(setCounterValue));
+  countVisit(a);
 };
