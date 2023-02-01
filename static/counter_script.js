@@ -64,6 +64,5 @@ function setCounterValue() {
 }
 
 window.onload = function () {
-  countVisit();
-  getCounterValue(setCounterValue);
+  countVisit(getCounterValue(setCounterValue));
 };
