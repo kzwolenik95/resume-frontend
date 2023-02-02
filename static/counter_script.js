@@ -9,7 +9,7 @@ function countVisit(callback) {
 
 function incrementCounter(callback) {
   var request = new XMLHttpRequest();
-  request.open('POST', 'https://ebwtlohff7.execute-api.us-east-1.amazonaws.com/beta/increment');
+  request.open('POST', 'https://arr9bilns8.execute-api.us-east-1.amazonaws.com/Prod/increment');
   request.onreadystatechange = function () {
     if (request.readyState == XMLHttpRequest.DONE) {
       callback();
@@ -51,7 +51,7 @@ function getCounterValue(callback) {
         callback();
       }
     }
-    request.open('GET', 'https://ebwtlohff7.execute-api.us-east-1.amazonaws.com/beta/increment');
+    request.open('GET', 'https://arr9bilns8.execute-api.us-east-1.amazonaws.com/Prod/increment');
     request.send();
   } else {
     callback();
