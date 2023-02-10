@@ -66,7 +66,10 @@ Resources:
     Properties:
       DistributionConfig:
         Aliases:
-          - !Ref Domain
+          !If
+          - IsProduction
+          - [!Ref Domain]
+          - !Ref AWS::NoValue
         Origins:
           - DomainName: !Sub '${Domain}.s3-website-${AWS::Region}.amazonaws.com'
             Id: !Sub '${Domain}.s3-website-${AWS::Region}.amazonaws.com'
