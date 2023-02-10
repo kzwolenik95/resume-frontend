@@ -33,6 +33,20 @@ Resources:
         !Sub 
         - "codepipeline-${AWS::Region}-${RandomGUID}"
         - { RandomGUID: !Select [0, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId ]]]] }
+  CloudFormationRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/service-role/"
+      RoleName: !Sub 'CloudFormationRole-${AWS::Region}-${PipelineName}'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AdministratorAccess"
   CodePipeline:
     Type: "AWS::CodePipeline::Pipeline"
     Properties:
@@ -71,6 +85,23 @@ Resources:
                 "OutputArtifactFormat": "CODE_ZIP"
                 "PollForSourceChanges": "false"
                 "RepositoryName": !Ref E2ERepoName
+        - Name: "Provision"
+          Actions:
+            - ActionTypeId:
+                Owner: AWS
+                Category: Deploy
+                Version: "1"
+                Provider: CloudFormation
+              Name: "Provision"
+              Configuration:
+                  ActionMode: CREATE_UPDATE
+                  Capabilities: CAPABILITY_NAMED_IAM
+                  ParameterOverrides: '{"Domain": "kzwolenik.com","EnvType": "TEST"}'
+                  RoleArn: !GetAtt CloudFormationRole.Arn
+                  StackName: resume_stack
+                  TemplatePath: 'SourceArtifact::resume_template.yaml'
+              InputArtifacts:
+                - Name: SourceArtifact
         - Name: "Build"
           Actions:
             - ActionTypeId:
@@ -128,7 +159,7 @@ Resources:
     Type: "AWS::IAM::Role"
     Properties:
       Path: "/service-role/"
-      RoleName: !Sub 'AWSCodePipelineServiceRole-${AWS::Region}-${PipelineName}'
+      RoleName: !Sub 'CodePipelineServiceRole-${AWS::Region}-${PipelineName}'
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -350,13 +381,13 @@ Resources:
               - appconfig:StopDeployment
               - appconfig:GetDeployment
             Resource: "*"
-      PolicyName: !Sub 'AWSCodePipelineServiceRole-${AWS::Region}-${PipelineName}'
+      PolicyName: !Sub 'CodePipelineServiceRole-${AWS::Region}-${PipelineName}'
       Roles:
         - !Ref CodePipelineRole
   CodeBuildRole:
     Type: "AWS::IAM::Role"
     Properties:
-      RoleName: !Sub "AWSCodeBuildServiceRole-${AWS::Region}-${CodeBuildName}"
+      RoleName: !Sub "CodeBuildServiceRole-${AWS::Region}-${CodeBuildName}"
       Path: "/service-role/"
       AssumeRolePolicyDocument:
         Version: 2012-10-17

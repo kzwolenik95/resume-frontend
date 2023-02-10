@@ -2,6 +2,7 @@ AWSTemplateFormatVersion: 2010-09-09
 Parameters:
   Domain:
     Type: String
+    Default: kzwolenik.com
   EnvType:
     Type: String
     Default: TEST
