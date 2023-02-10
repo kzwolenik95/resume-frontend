@@ -1,6 +1,9 @@
 {{ define "main" }}
 <div id="counter">This page has been visited X times!</div>
-<script async language="javascript" type="text/javascript" src="{{ "/counter_script.js" }}"></script>
+
+{{ $path := "js/counter_script.js" }}
+{{ $js := resources.Get $path  | resources.ExecuteAsTemplate $path . }}
+<script async language="javascript" type="text/javascript" src="{{ $js.Permalink }}"></script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Hahmlet">
 <link rel="stylesheet" href="/styles.css">
 <div class="outer">
