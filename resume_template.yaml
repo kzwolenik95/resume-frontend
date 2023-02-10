@@ -1,0 +1,121 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  Domain:
+    Type: String
+  EnvType:
+    Type: String
+    Default: TEST
+Conditions:
+  IsProduction: !Equals
+    - !Ref EnvType
+    - PROD
+Resources:
+  WebsiteBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Ref Domain
+      WebsiteConfiguration:
+        IndexDocument: index.html
+  WebsiteBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref WebsiteBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Sub 'arn:aws:s3:::${Domain}/*'
+  Certificate:
+    Type: 'AWS::CertificateManager::Certificate'
+    Condition: IsProduction
+    Properties:
+      DomainName: !Ref Domain
+      SubjectAlternativeNames:
+        - !Sub '*.${Domain}'
+      DomainValidationOptions:
+        - DomainName: !Ref Domain
+          HostedZoneId: !Ref HostedZone
+      ValidationMethod: DNS
+  HostedZone:
+    Type: 'AWS::Route53::HostedZone'
+    Condition: IsProduction
+    Properties:
+      Name: !Ref Domain
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: f13cce9d-5e8a-4939-9c61-ae4870b48185
+  RecordSet:
+    Type: 'AWS::Route53::RecordSet'
+    Condition: IsProduction
+    Properties:
+      HostedZoneName: !Sub '${Domain}.'
+      Name: !Ref Domain
+      Type: A
+      AliasTarget:
+        HostedZoneId: Z2FDTNDATAQYW2
+        DNSName: !Sub "${Distribution.DomainName}."
+        EvaluateTargetHealth: false
+    DependsOn:
+      - HostedZone
+  Distribution:
+    Type: 'AWS::CloudFront::Distribution'
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !Ref Domain
+        Origins:
+          - DomainName: !Sub '${Domain}.s3-website-${AWS::Region}.amazonaws.com'
+            Id: !Sub '${Domain}.s3-website-${AWS::Region}.amazonaws.com'
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginKeepaliveTimeout: 5
+              OriginProtocolPolicy: http-only
+              OriginReadTimeout: 30
+              OriginSSLProtocols:
+                - TLSv1.2
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - HEAD
+            - GET
+          CachedMethods:
+            - HEAD
+            - GET
+          Compress: true
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          SmoothStreaming: false
+          TargetOriginId: !Sub '${Domain}.s3-website-${AWS::Region}.amazonaws.com'
+          ViewerProtocolPolicy: redirect-to-https
+        PriceClass: PriceClass_All
+        Enabled: true
+        ViewerCertificate:
+          !If
+          - IsProduction
+          - AcmCertificateArn: !Ref Certificate
+            SslSupportMethod: sni-only
+          - "AWS::NoValue"
+        IPV6Enabled: true
+    DependsOn:
+      - WebsiteBucket
+      - WebsiteBucketPolicy
+Outputs:
+  WebBucketURL:
+    Description: "Url for the website bucket"
+    Value: !GetAtt WebsiteBucket.WebsiteURL
+  CertificateARN:
+    Condition: IsProduction
+    Value: !Ref Certificate
+  HostedZoneNameServers:
+    Condition: IsProduction
+    Value: !Join
+      - " "
+      - !GetAtt HostedZone.NameServers
+  RecordSetDomainName:
+    Condition: IsProduction
+    Value: !Ref RecordSet
+  DistributionDomainName:
+    Value: !GetAtt Distribution.DomainName
+  
