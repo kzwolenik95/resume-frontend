@@ -97,7 +97,7 @@ Resources:
           - IsProduction
           - AcmCertificateArn: !Ref Certificate
             SslSupportMethod: sni-only
-          - "AWS::NoValue"
+          - !Ref AWS::NoValue
         IPV6Enabled: true
     DependsOn:
       - WebsiteBucket

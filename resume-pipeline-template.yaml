@@ -98,7 +98,7 @@ Resources:
                   Capabilities: CAPABILITY_NAMED_IAM
                   ParameterOverrides: '{"Domain": "kzwolenik.com","EnvType": "TEST"}'
                   RoleArn: !GetAtt CloudFormationRole.Arn
-                  StackName: resume_stack
+                  StackName: resume-stack
                   TemplatePath: 'SourceArtifact::resume_template.yaml'
               InputArtifacts:
                 - Name: SourceArtifact
