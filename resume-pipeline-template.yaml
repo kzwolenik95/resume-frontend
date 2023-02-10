@@ -12,7 +12,7 @@ Parameters:
     Default: '{"dist_id": "E7IZ3D710GJNR", "object_paths": ["/*"]}'
   DeployBucket:
     Type: String
-    Default: "dev.kzwolenik.com"
+    Default: "kzwolenik.com"
   CodeCommitRepoURL:
     Type: String
     Default: https://git-codecommit.us-east-1.amazonaws.com/v1/repos/resume
@@ -93,6 +93,7 @@ Resources:
                 Version: "1"
                 Provider: CloudFormation
               Name: "Provision"
+              Namespace: ProvisionVariables
               Configuration:
                   ActionMode: CREATE_UPDATE
                   Capabilities: CAPABILITY_NAMED_IAM
@@ -139,7 +140,7 @@ Resources:
               Name: "Invalidate"
               Configuration:
                 "FunctionName": !Ref InvalidateCacheLambdaFunction
-                "UserParameters": !Ref LambdaUserParameters
+                "UserParameters": '{"dist_id": "#{ProvisionVariables.DistributionId}", "object_paths": ["/*"]}'
         - Name: "E2Etest"
           Actions:
             - ActionTypeId:

@@ -122,4 +122,6 @@ Outputs:
     Value: !Ref RecordSet
   DistributionDomainName:
     Value: !GetAtt Distribution.DomainName
+  DistributionId:
+    Value: !GetAtt Distribution.Id
   
