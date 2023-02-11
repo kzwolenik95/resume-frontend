@@ -145,7 +145,7 @@ Resources:
                 ProjectName: !Ref CodeBuildName
                 EnvironmentVariables:
                   - Name: HUGO_API_ENDPOINT
-                    Value: #{SAMBuildVariables.ResumeApi}
+                    Value: "#{SAMBuildVariables.ResumeApi}"
         - Name: "Deploy"
           Actions:
             - ActionTypeId:
