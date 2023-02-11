@@ -4,6 +4,8 @@ Parameters:
     Type: String
   CodeBuildName:
     Type: String
+  CodeBuildBackendName:
+    Type: String
   DockerImageURL:
     Type: String
     Default: "public.ecr.aws/u7z7r9o7/ecr-repo:ext-alpine-ci"
@@ -59,12 +61,12 @@ Resources:
       Stages:
         - Name: "Source"
           Actions:
-            - ActionTypeId:
+            - Name: "Source"
+              ActionTypeId:
                 Owner: "AWS"
                 Category: "Source"
                 Version: "1"
                 Provider: "CodeCommit"
-              Name: "Source"
               OutputArtifacts:
                 - Name: "SourceArtifact"
               Configuration:
@@ -72,12 +74,12 @@ Resources:
                 "OutputArtifactFormat": "CODE_ZIP"
                 "PollForSourceChanges": "false"
                 "RepositoryName": !Ref CodeCommitRepoName
-            - ActionTypeId:
+            - Name: "SourceE2Etest"
+              ActionTypeId:
                 Owner: "AWS"
                 Category: "Source"
                 Version: "1"
                 Provider: "CodeCommit"
-              Name: "SourceE2Etest"
               OutputArtifacts:
                 - Name: "E2ETestArtifact"
               Configuration:
@@ -85,14 +87,27 @@ Resources:
                 "OutputArtifactFormat": "CODE_ZIP"
                 "PollForSourceChanges": "false"
                 "RepositoryName": !Ref E2ERepoName
+            - Name: SourceBackend
+              ActionTypeId:
+                Owner: AWS
+                Category: Source
+                Version: "1"
+                Provider: CodeCommit
+              OutputArtifacts:
+                - Name: "SourceBackendArtifact"
+              Configuration:
+                "BranchName": "master"
+                "OutputArtifactFormat": "CODE_ZIP"
+                "PollForSourceChanges": "false"
+                "RepositoryName": !Ref CodeCommitRepoName
         - Name: "Provision"
           Actions:
-            - ActionTypeId:
+            - Name: "Provision"
+              ActionTypeId:
                 Owner: AWS
                 Category: Deploy
                 Version: "1"
                 Provider: CloudFormation
-              Name: "Provision"
               Namespace: ProvisionVariables
               Configuration:
                   ActionMode: CREATE_UPDATE
@@ -103,6 +118,17 @@ Resources:
                   TemplatePath: 'SourceArtifact::resume_template.yaml'
               InputArtifacts:
                 - Name: SourceArtifact
+            - Name: "Provision SAM tempalte"
+              Namespace: SAMBuildVariables
+              ActionTypeId:
+                Owner: AWS
+                Category: Build
+                Version: "1"
+                Provider: CodeBuild
+              InputArtifacts:
+                - Name: "SourceBackendArtifact"
+              Configuration:
+                ProjectName: !Ref CodeBuildBackend
         - Name: "Build"
           Actions:
             - ActionTypeId:
@@ -116,7 +142,10 @@ Resources:
               OutputArtifacts:
                 - Name: "BuildArtifact"
               Configuration:
-                "ProjectName": !Ref CodeBuildName
+                ProjectName: !Ref CodeBuildName
+                EnvironmentVariables:
+                  - Name: HUGO_API_ENDPOINT
+                    Value: #{SAMBuildVariables.ResumeApi}
         - Name: "Deploy"
           Actions:
             - ActionTypeId:
@@ -567,3 +596,115 @@ Resources:
         ComputeType: BUILD_GENERAL1_SMALL
     DependsOn:
       - CodeBuildE2EtestPolicy
+  CodeBuildBackendRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub "CodeBuildServiceRole-${AWS::Region}-${CodeBuildBackendName}"
+      Path: "/service-role/"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: "codebuild.amazonaws.com"
+            Action: "sts:AssumeRole"
+  CodeBuildRoleBackendPolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Resource:
+              - arn:aws:logs:us-east-1:982211721436:log-group:/aws/codebuild/*
+              # - arn:aws:logs:us-east-1:982211721436:log-group:/aws/codebuild/build-backend:*
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+          - Effect: Allow
+            Action:
+              - cloudformation:DescribeStacks
+              - cloudformation:CreateChangeSet
+              - cloudformation:ExecuteChangeSet
+              - cloudformation:DescribeChangeSet
+              - cloudformation:DescribeStackEvents
+            Resource:
+              - arn:aws:cloudformation:us-east-1:aws:transform/Serverless-2016-10-31
+              - arn:aws:cloudformation:us-east-1:982211721436:stack/sam*
+          - Effect: Allow
+            Resource:
+              - arn:aws:s3:::codepipeline-us-east-1-*
+              - arn:aws:s3:::aws-sam-cli-managed-default-samclisourcebucket-*
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:GetBucketAcl
+              - s3:GetBucketLocation
+          - Effect: Allow
+            Action:
+              - cloudformation:GetTemplateSummary
+            Resource: arn:aws:cloudformation:us-east-1:982211721436:stack/sam*
+          - Effect: Allow
+            Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Resource:
+              - arn:aws:codebuild:us-east-1:982211721436:report-group/*
+          - Effect: "Allow"
+            Action:
+              - "lambda:*"
+              - "cloudwatch:*"
+              - "dynamodb:*"
+              - "sns:*"
+              - "resource-groups:*"
+              - "applicationinsights:*"
+              - "cloudformation:*"
+              - "apigateway:*"
+              - "logs:*"
+              - "iam:*"
+            Resource:
+              - "*"
+      PolicyName: !Sub 'CodeBuildBasePolicy-${CodeBuildName}-${AWS::Region}'
+      Roles:
+        - !Ref CodeBuildBackendRole
+  CodeBuildBackend:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Ref CodeBuildBackendName
+      Source:
+        Type: "CODEPIPELINE"
+        BuildSpec: |-
+          version: 0.2
+          env:
+            exported-variables:
+              - ResumeApi
+          phases:
+            install:
+              commands:
+                - pip install -r tests/requirements.txt
+            build:
+              commands:
+                - export PYTHONPATH=${CODEBUILD_SRC_DIR}
+                - pytest tests/unit/
+                - sam build
+                - sam deploy --no-confirm-changeset --no-fail-on-empty-changeset
+                - STACK_NAME=$(sed -n 's|stack_name\s*=\s*"\([-a-zA-Z0-9]\+\)"|\1|p' samconfig.toml)
+                - RESUME_API=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --query 'Stacks[0].Outputs[?OutputKey==`ResumeApi`].OutputValue' --output text)
+                - export ResumeApi=$RESUME_API
+      ServiceRole: !GetAtt CodeBuildBackendRole.Arn
+      Artifacts:
+        Type: "CODEPIPELINE"
+        Name: !Ref CodeBuildBackendName
+        Packaging: "NONE"
+      Environment:
+        Type: "LINUX_CONTAINER"
+        Image: !Ref DockerImageURL
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        ImagePullCredentialsType: "SERVICE_ROLE"
+    DependsOn:
+      - CodeBuildRoleBackendPolicy
