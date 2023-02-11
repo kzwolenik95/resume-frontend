@@ -6,12 +6,15 @@ Parameters:
     Type: String
   CodeBuildBackendName:
     Type: String
-  DockerImageURL:
+  DockerImageURLFrontend:
     Type: String
     Default: "public.ecr.aws/u7z7r9o7/ecr-repo:ext-alpine-ci"
-  LambdaUserParameters:
+  DockerImageURLBackend:
     Type: String
-    Default: '{"dist_id": "E7IZ3D710GJNR", "object_paths": ["/*"]}'
+    Default: public.ecr.aws/sam/build-python3.9:1.72.0-20230202220736
+  # LambdaUserParameters:
+  #   Type: String
+  #   Default: '{"dist_id": "E7IZ3D710GJNR", "object_paths": ["/*"]}'
   DeployBucket:
     Type: String
     Default: "kzwolenik.com"
@@ -142,8 +145,8 @@ Resources:
               OutputArtifacts:
                 - Name: "BuildArtifact"
               Configuration:
-                ProjectName: !Ref CodeBuildName
-                EnvironmentVariables: '[{"name":"HUGO_API_ENDPOINT","value":"#{SAMBuildVariables.ResumeApi,"type":"PLAINTEXT"}"]'
+                ProjectName: !Ref CodeBuild
+                EnvironmentVariables: '[{"name":"HUGO_API_ENDPOINT","value":"#{SAMBuildVariables.ResumeApi}"}]'
         - Name: "Deploy"
           Actions:
             - ActionTypeId:
@@ -505,7 +508,7 @@ Resources:
         Packaging: "ZIP"
       Environment:
         Type: "LINUX_CONTAINER"
-        Image: !Ref DockerImageURL
+        Image: !Ref DockerImageURLFrontend
         ComputeType: "BUILD_GENERAL1_SMALL"
         ImagePullCredentialsType: "SERVICE_ROLE"
     DependsOn:
@@ -701,7 +704,7 @@ Resources:
         Packaging: "NONE"
       Environment:
         Type: "LINUX_CONTAINER"
-        Image: !Ref DockerImageURL
+        Image: !Ref DockerImageURLBackend
         ComputeType: "BUILD_GENERAL1_SMALL"
         ImagePullCredentialsType: "SERVICE_ROLE"
     DependsOn:
