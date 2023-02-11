@@ -143,7 +143,7 @@ Resources:
                 - Name: "BuildArtifact"
               Configuration:
                 ProjectName: !Ref CodeBuildName
-                EnvironmentVariables: '[{"name":"HUGO_API_ENDPOINT","value":"#{SAMBuildVariables.ResumeApi}"]'
+                EnvironmentVariables: '[{"name":"HUGO_API_ENDPOINT","value":"#{SAMBuildVariables.ResumeApi,"type":"PLAINTEXT"}"]'
         - Name: "Deploy"
           Actions:
             - ActionTypeId:
