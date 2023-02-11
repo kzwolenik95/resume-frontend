@@ -118,7 +118,7 @@ Resources:
                   TemplatePath: 'SourceArtifact::resume_template.yaml'
               InputArtifacts:
                 - Name: SourceArtifact
-            - Name: "Provision SAM tempalte"
+            - Name: "Provision_SAM_tempalte"
               Namespace: SAMBuildVariables
               ActionTypeId:
                 Owner: AWS
