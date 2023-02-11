@@ -3,7 +3,7 @@
 
 {{ $path := "js/counter_script.js" }}
 {{ $js := resources.Get $path  | resources.ExecuteAsTemplate $path . }}
-<script async language="javascript" type="text/javascript" src="{{ $js.Permalink }}"></script>
+<script async language="javascript" type="text/javascript" src="{{ $js.RelPermalink }}"></script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Hahmlet">
 <link rel="stylesheet" href="/styles.css">
 <div class="outer">

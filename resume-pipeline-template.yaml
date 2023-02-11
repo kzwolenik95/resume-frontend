@@ -24,6 +24,9 @@ Parameters:
   CodeCommitRepoName:
     Type: String
     Default: resume
+  CodeCommitBackendRepoName:
+    Type: String
+    Default: resume-backend
   E2ERepoName:
     Type: String
     Default: e2e_tests
@@ -102,7 +105,7 @@ Resources:
                 "BranchName": "master"
                 "OutputArtifactFormat": "CODE_ZIP"
                 "PollForSourceChanges": "false"
-                "RepositoryName": !Ref CodeCommitRepoName
+                "RepositoryName": !Ref CodeCommitBackendRepoName
         - Name: "Provision"
           Actions:
             - Name: "Provision"
@@ -184,7 +187,6 @@ Resources:
               Configuration:
                 ProjectName: !Ref CodeBuildE2Etest
     DependsOn:
-      - CodeBuild
       - CodePipelineRolePolicy
   CodePipelineRole:
     Type: "AWS::IAM::Role"
