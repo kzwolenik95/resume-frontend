@@ -103,6 +103,8 @@ Resources:
       - WebsiteBucket
       - WebsiteBucketPolicy
 Outputs:
+  WebBucket:
+    Value: !Ref WebsiteBucket
   WebBucketURL:
     Description: "Url for the website bucket"
     Value: !GetAtt WebsiteBucket.WebsiteURL
