@@ -15,8 +15,6 @@ Parameters:
     Type: String
   BackStackName:
     Type: String
-  KeyId:
-    Type: String
   BackendRepoName:
     Type: String
   FrontendRepoName:
@@ -203,7 +201,7 @@ Resources:
         Type: S3
         EncryptionKey:
           Type: KMS
-          Id: !Ref KeyId
+          Id: !GetAtt KMSKey.KeyId
       RoleArn: !GetAtt CrossAccCodePipelineRole.Arn
       Stages:
         - Name: "Source"
