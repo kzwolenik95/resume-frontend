@@ -334,6 +334,7 @@ Resources:
       - ArtifactStoreBucketPolicy
       - CodeBuildFrontendPolicy
       - CodeBuildBackendPolicy
+      - DoNotStartPipelineAfterCreation
   CodeBuildBackend:
     Type: AWS::CodeBuild::Project
     Properties:
@@ -712,8 +713,6 @@ Resources:
           - aws.codepipeline
         detail-type:
           - CodePipeline Pipeline Execution State Change
-        resources:
-          - !Sub "arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${CrossAccCodePipeline}"
         detail:
           state:
             - STARTED
