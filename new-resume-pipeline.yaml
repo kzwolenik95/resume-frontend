@@ -1,0 +1,658 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  PipelineName:
+    Type: String
+  ProdAccount:
+    Description: AWS AccountNumber for production
+    Type: Number
+    Default: 173633330431
+  # CrossAccountRoleArn:
+  #   Type: String
+  #   Default: arn:aws:iam::173633330431:role/roles-for-multi-acc-deployment-CrossAccountRole-125MMIP2KEB8K
+  FrontStackName:
+    Type: String
+  BackStackName:
+    Type: String
+  KeyId:
+    Type: String
+  BackendRepoName:
+    Type: String
+  FrontendRepoName:
+    Type: String
+  E2ETestRepoName:
+    Type: String
+Resources:
+  ArtifactStoreBucket:
+    Type: AWS::S3::Bucket
+  ArtifactStoreBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ArtifactStoreBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: ""
+            Action:
+              - s3:Get*
+              - s3:Put*
+            Effect: Allow
+            Resource: !Sub "${ArtifactStoreBucket.Arn}/*"
+            Principal:
+              AWS:
+                - !Sub "arn:aws:iam::${ProdAccount}:root"
+          - Sid: ""
+            Action:
+              - s3:ListBucket
+            Effect: Allow
+            Resource: !GetAtt ArtifactStoreBucket.Arn
+            Principal:
+              AWS:
+                - !Sub "arn:aws:iam::${ProdAccount}:root"
+  CrossAccCodePipelineRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/service-role/"
+      RoleName: !Sub "CrossAccCodePipelineServiceRole-${AWS::Region}-${PipelineName}"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - !Ref AssumeProdPolicy
+  CrossAccCodePipelineRolePolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: !Sub "CrossAccCodePipelineServiceRole-${AWS::Region}-${PipelineName}"
+      Roles:
+        - !Ref CrossAccCodePipelineRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - iam:PassRole
+            Resource: "*"
+            Effect: Allow
+            Condition:
+              StringEqualsIfExists:
+                iam:PassedToService:
+                  - cloudformation.amazonaws.com
+                  - elasticbeanstalk.amazonaws.com
+                  - ec2.amazonaws.com
+                  - ecs-tasks.amazonaws.com
+          - Action:
+              - codecommit:CancelUploadArchive
+              - codecommit:GetBranch
+              - codecommit:GetCommit
+              - codecommit:GetRepository
+              - codecommit:GetUploadArchiveStatus
+              - codecommit:UploadArchive
+            Resource: "*"
+            Effect: Allow
+          - Action:
+              - codedeploy:CreateDeployment
+              - codedeploy:GetApplication
+              - codedeploy:GetApplicationRevision
+              - codedeploy:GetDeployment
+              - codedeploy:GetDeploymentConfig
+              - codedeploy:RegisterApplicationRevision
+            Resource: "*"
+            Effect: Allow
+          - Action:
+              - codestar-connections:UseConnection
+            Resource: "*"
+            Effect: Allow
+          - Action:
+              - elasticbeanstalk:*
+              - ec2:*
+              - elasticloadbalancing:*
+              - autoscaling:*
+              - cloudwatch:*
+              - s3:*
+              - sns:*
+              - cloudformation:*
+              - rds:*
+              - sqs:*
+              - ecs:*
+            Resource: "*"
+            Effect: Allow
+          - Action:
+              - lambda:InvokeFunction
+              - lambda:ListFunctions
+            Resource: "*"
+            Effect: Allow
+          - Action:
+              - opsworks:CreateDeployment
+              - opsworks:DescribeApps
+              - opsworks:DescribeCommands
+              - opsworks:DescribeDeployments
+              - opsworks:DescribeInstances
+              - opsworks:DescribeStacks
+              - opsworks:UpdateApp
+              - opsworks:UpdateStack
+            Resource: "*"
+            Effect: Allow
+          - Action:
+              - cloudformation:CreateStack
+              - cloudformation:DeleteStack
+              - cloudformation:DescribeStacks
+              - cloudformation:UpdateStack
+              - cloudformation:CreateChangeSet
+              - cloudformation:DeleteChangeSet
+              - cloudformation:DescribeChangeSet
+              - cloudformation:ExecuteChangeSet
+              - cloudformation:SetStackPolicy
+              - cloudformation:ValidateTemplate
+            Resource: "*"
+            Effect: Allow
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:BatchGetBuildBatches
+              - codebuild:StartBuildBatch
+            Resource: "*"
+            Effect: Allow
+          - Effect: Allow
+            Action:
+              - devicefarm:ListProjects
+              - devicefarm:ListDevicePools
+              - devicefarm:GetRun
+              - devicefarm:GetUpload
+              - devicefarm:CreateUpload
+              - devicefarm:ScheduleRun
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - servicecatalog:ListProvisioningArtifacts
+              - servicecatalog:CreateProvisioningArtifact
+              - servicecatalog:DescribeProvisioningArtifact
+              - servicecatalog:DeleteProvisioningArtifact
+              - servicecatalog:UpdateProduct
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - cloudformation:ValidateTemplate
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - ecr:DescribeImages
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - states:DescribeExecution
+              - states:DescribeStateMachine
+              - states:StartExecution
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - appconfig:StartDeployment
+              - appconfig:StopDeployment
+              - appconfig:GetDeployment
+            Resource: "*"
+  CrossAccCodePipeline:
+    Type: "AWS::CodePipeline::Pipeline"
+    Properties:
+      Name: !Ref PipelineName
+      RestartExecutionOnUpdate: false
+      ArtifactStore:
+        Location: !Ref ArtifactStoreBucket
+        Type: S3
+        EncryptionKey:
+          Type: KMS
+          Id: !Ref KeyId
+      RoleArn: !GetAtt CrossAccCodePipelineRole.Arn
+      Stages:
+        - Name: "Source"
+          Actions:
+            - Name: "FrontendSource"
+              ActionTypeId:
+                Owner: "AWS"
+                Category: "Source"
+                Version: "1"
+                Provider: "CodeCommit"
+              OutputArtifacts:
+                - Name: "FrontendSourceArtifact"
+              Configuration:
+                "BranchName": "master"
+                "OutputArtifactFormat": "CODE_ZIP"
+                "PollForSourceChanges": "false"
+                "RepositoryName": !Ref FrontendRepoName
+            - Name: "E2EtestSource"
+              ActionTypeId:
+                Owner: "AWS"
+                Category: "Source"
+                Version: "1"
+                Provider: "CodeCommit"
+              OutputArtifacts:
+                - Name: "E2ETestArtifact"
+              Configuration:
+                "BranchName": "master"
+                "OutputArtifactFormat": "CODE_ZIP"
+                "PollForSourceChanges": "false"
+                "RepositoryName": !Ref E2ETestRepoName
+            - Name: BackendSource
+              ActionTypeId:
+                Owner: AWS
+                Category: Source
+                Version: "1"
+                Provider: CodeCommit
+              OutputArtifacts:
+                - Name: "BackendSourceArtifact"
+              Configuration:
+                "BranchName": "master"
+                "OutputArtifactFormat": "CODE_ZIP"
+                "PollForSourceChanges": "false"
+                "RepositoryName": !Ref BackendRepoName
+        - Name: DeployTest
+          Actions:
+            - Name: BuildSAM
+              RunOrder: 1
+              ActionTypeId:
+                Owner: AWS
+                Category: Build
+                Version: "1"
+                Provider: CodeBuild
+              InputArtifacts:
+                - Name: BackendSourceArtifact
+              OutputArtifacts:
+                - Name: BackendTemplateArtifact
+              Configuration:
+                ProjectName: !Ref CodeBuildBackend
+            - Name: ProvisionFrontend
+              Namespace: ProvisionFrontendVariables
+              RunOrder: 1
+              ActionTypeId:
+                Owner: AWS
+                Category: Deploy
+                Version: "1"
+                Provider: CloudFormation
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                Capabilities: CAPABILITY_NAMED_IAM
+                ParameterOverrides: '{"Domain": "test.kzwolenik.com","EnvType": "TEST"}'
+                RoleArn: !GetAtt CloudFormationTestDeployer.Arn
+                StackName: !Sub "${FrontStackName}-test"
+                TemplatePath: "FrontendSourceArtifact::resume_template.yaml"
+              InputArtifacts:
+                - Name: FrontendSourceArtifact
+            - Name: DeployBackend
+              Namespace: DeployBackendVars
+              RunOrder: 2
+              ActionTypeId:
+                Owner: AWS
+                Category: Deploy
+                Version: "1"
+                Provider: CloudFormation
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                Capabilities: CAPABILITY_NAMED_IAM
+                RoleArn: !GetAtt CloudFormationTestDeployer.Arn
+                StackName: !Sub "${BackStackName}-test"
+                TemplatePath: BackendTemplateArtifact::packaged-backend-template.yml
+              InputArtifacts:
+                - Name: BackendTemplateArtifact
+            - Name: BuildFrontend
+              RunOrder: 3
+              ActionTypeId:
+                Owner: "AWS"
+                Category: "Build"
+                Version: "1"
+                Provider: "CodeBuild"
+              InputArtifacts:
+                - Name: "FrontendSourceArtifact"
+              OutputArtifacts:
+                - Name: "FrontendBuildArtifact"
+              Configuration:
+                ProjectName: !Ref CodeBuildFrontend
+                EnvironmentVariables: '[{"name":"HUGO_API_ENDPOINT","value":"#{DeployBackendVars.ResumeApi}"}]'
+            - Name: "Deploy static page"
+              RunOrder: 4
+              ActionTypeId:
+                Owner: "AWS"
+                Category: "Deploy"
+                Version: "1"
+                Provider: "S3"
+              InputArtifacts:
+                - Name: "FrontendBuildArtifact"
+              Configuration:
+                BucketName: "${ProvisionFrontendVariables.WebBucket}"
+                Extract: "true"
+            - Name: "CloudFront cache invalidate"
+              RunOrder: 5
+              ActionTypeId:
+                Owner: "AWS"
+                Category: "Invoke"
+                Version: "1"
+                Provider: "Lambda"
+              Configuration:
+                FunctionName: !Ref InvalidateCacheLambdaFunction
+                UserParameters: '{"dist_id": "#{ProvisionFrontendVariables.DistributionId}", "object_paths": ["/*"]}'
+    DependsOn:
+      - CrossAccCodePipelineRolePolicy
+      - ArtifactStoreBucketPolicy
+      - CodeBuildFrontendPolicy
+      - CodeBuildBackendPolicy
+  CodeBuildBackend:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: "CODEPIPELINE"
+      Environment:
+        Type: "LINUX_CONTAINER"
+        Image: public.ecr.aws/sam/build-python3.9:1.72.0-20230202220736
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        ImagePullCredentialsType: "SERVICE_ROLE"
+        EnvironmentVariables:
+          - Name: S3Bucket
+            Value: !Ref ArtifactStoreBucket
+      ServiceRole: !GetAtt CodeBuildBackendRole.Arn
+      Source:
+        Type: "CODEPIPELINE"
+        BuildSpec: |-
+          version: 0.2
+          env:
+            exported-variables:
+              - ResumeApi
+          phases:
+            install:
+              commands:
+                - pip install -r tests/requirements.txt
+            build:
+              commands:
+                - export PYTHONPATH=${CODEBUILD_SRC_DIR}
+                - pytest tests/unit/
+                - sam package --s3-bucket $S3Bucket --region $AWS_REGION --output-template-file packaged-backend-template.yml
+            artifacts:
+              files:
+                - packaged-backend-template.yml
+  CodeBuildBackendRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/service-role/"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: "codebuild.amazonaws.com"
+            Action: "sts:AssumeRole"
+  CodeBuildBackendPolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: !Sub "CodeBuildBackendPolicy-${AWS::Region}"
+      Roles:
+        - !Ref CodeBuildBackendRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Resource:
+              - !Sub arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:/aws/${CodeBuildBackend}/*
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+          - Effect: Allow
+            Action:
+              - cloudformation:DescribeStacks
+              - cloudformation:CreateChangeSet
+              - cloudformation:ExecuteChangeSet
+              - cloudformation:DescribeChangeSet
+              - cloudformation:DescribeStackEvents
+            Resource:
+              - arn:aws:cloudformation:us-east-1:aws:transform/Serverless-2016-10-31
+              - !Sub arn:aws:cloudformation:us-east-1:${AWS::AccountId}:stack/${BackStackName}-test
+          - Effect: Allow
+            Resource:
+              - !Sub "${ArtifactStoreBucket.Arn}"
+              - !Sub "${ArtifactStoreBucket.Arn}/*"
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:GetBucketAcl
+              - s3:GetBucketLocation
+          - Effect: Allow
+            Action:
+              - cloudformation:GetTemplateSummary
+            Resource: !Sub arn:aws:cloudformation:us-east-1:${AWS::AccountId}:stack/${BackStackName}-test
+          - Effect: Allow
+            Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Resource:
+              - !Sub arn:aws:codebuild:us-east-1:${AWS::AccountId}:report-group/*
+          # - Effect: "Allow"
+          #   Action:
+          #     - "lambda:*"
+          #     - "cloudwatch:*"
+          #     - "dynamodb:*"
+          #     - "sns:*"
+          #     - "resource-groups:*"
+          #     - "applicationinsights:*"
+          #     - "cloudformation:*"
+          #     - "apigateway:*"
+          #     - "logs:*"
+          #     - "iam:*"
+          #   Resource:
+          #     - "*"
+  CodeBuildFrontend:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      ServiceRole: !GetAtt CodeBuildFrontendRole.Arn
+      Artifacts:
+        Type: "CODEPIPELINE"
+      Environment:
+        Type: "LINUX_CONTAINER"
+        Image: "public.ecr.aws/u7z7r9o7/ecr-repo:ext-alpine-ci"
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        ImagePullCredentialsType: "SERVICE_ROLE"
+      Source:
+        Type: "CODEPIPELINE"
+        BuildSpec: |-
+          version: 0.2
+          phases:
+            build:
+              commands:
+                - hugo -v
+            post_build:
+              commands:
+                - echo Build completed on $(date)
+          artifacts:
+            files:
+              - '**/*'
+            base-directory: public
+  CodeBuildFrontendRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/service-role/"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: "codebuild.amazonaws.com"
+            Action: "sts:AssumeRole"
+  CodeBuildFrontendPolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Resource:
+              - !Sub "arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:/aws/codebuild/${CodeBuildFrontend}"
+              - !Sub "arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:/aws/codebuild/${CodeBuildFrontend}:*"
+            Action:
+              - "logs:CreateLogGroup"
+              - "logs:CreateLogStream"
+              - "logs:PutLogEvents"
+          - Effect: Allow
+            Resource:
+              - "arn:aws:s3:::codepipeline-us-east-1-*"
+            Action:
+              - "s3:PutObject"
+              - "s3:GetObject"
+              - "s3:GetObjectVersion"
+              - "s3:GetBucketAcl"
+              - "s3:GetBucketLocation"
+          - Effect: Allow
+            Resource:
+              - !Sub "arn:aws:codecommit:us-east-1:${AWS::AccountId}:${FrontendRepoName}"
+            Action:
+              - "codecommit:GitPull"
+          - Effect: Allow
+            Resource:
+              - !Sub "${ArtifactStoreBucket.Arn}"
+              - !Sub "${ArtifactStoreBucket.Arn}/*"
+            Action:
+              - "s3:PutObject"
+              - "s3:GetBucketAcl"
+              - "s3:GetBucketLocation"
+          - Effect: Allow
+            Action:
+              - "codebuild:CreateReportGroup"
+              - "codebuild:CreateReport"
+              - "codebuild:UpdateReport"
+              - "codebuild:BatchPutTestCases"
+              - "codebuild:BatchPutCodeCoverages"
+            Resource:
+              - !Sub "arn:aws:codebuild:us-east-1:${AWS::AccountId}:report-group/${CodeBuildFrontend}-*"
+      PolicyName: !Sub "CodeBuildFrontendPolicy-${AWS::Region}"
+      Roles:
+        - !Ref CodeBuildFrontendRole
+  CloudFormationTestDeployer:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/service-role/"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AdministratorAccess"
+  InvalidateCacheLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |-
+          import json
+          import boto3
+
+          code_pipeline_client = boto3.client("codepipeline")
+          cloud_front_client = boto3.client("cloudfront")
+
+
+          def lambda_handler(event):
+              job_id = event["CodePipeline.job"]["id"]
+
+              try:
+                  user_params = json.loads(
+                      event["CodePipeline.job"]["data"]["actionConfiguration"]["configuration"][
+                          "UserParameters"
+                      ]
+                  )
+
+                  role_arn = user_params.get("role_arn")
+                  if role_arn:
+                      sts_client = boto3.client("sts")
+                      assumed_role = sts_client.assume_role(
+                          RoleArn=role_arn, RoleSessionName="AssumeRoleSession"
+                      )
+                      credentials = assumed_role["Credentials"]
+                      global cloud_front_client
+                      cloud_front_client = boto3.client(
+                          "cloudfront",
+                          aws_access_key_id=credentials["AccessKeyId"],
+                          aws_secret_access_key=credentials["SecretAccessKey"],
+                          aws_session_token=credentials["SessionToken"],
+                      )
+
+                  cloud_front_client.create_invalidation(
+                      DistributionId=user_params["dist_id"],
+                      InvalidationBatch={
+                          "Paths": {
+                              "Quantity": len(user_params["object_paths"]),
+                              "Items": user_params["object_paths"],
+                          },
+                          "CallerReference": job_id,
+                      },
+                  )
+              except Exception as e:
+                  code_pipeline_client.put_job_failure_result(
+                      jobId=job_id,
+                      failureDetails={
+                          "type": "JobFailed",
+                          "message": f"Failed due to the exception {str(e)}",
+                      },
+                  )
+              else:
+                  code_pipeline_client.put_job_success_result(
+                      jobId=job_id,
+                  )
+      Description: "Lambda function to invalidate CloudFront cache"
+      FunctionName: "invalidate_cloudfront_cache"
+      Role: !GetAtt InvalidateCacheLambdaRole.Arn
+      Runtime: "python3.9"
+      Handler: "index.lambda_handler"
+    DependsOn:
+      - "InvalidateCacheLambdaPolicy"
+  InvalidateCacheLambdaRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: InvalidateCacheLambdaRole
+      Path: "/service-role/"
+      ManagedPolicyArns:
+        - !Ref AssumeProdPolicy
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: "lambda.amazonaws.com"
+            Action: "sts:AssumeRole"
+  InvalidateCacheLambdaPolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: InvalidateCacheLambdaPolicy
+      Roles:
+        - !Ref  InvalidateCacheLambdaRole
+      PolicyDocument: 
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - codepipeline:PutJobFailureResult
+              - codepipeline:PutJobSuccessResult
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - cloudfront:CreateInvalidation
+            Resource:
+              - arn:aws:logs:us-east-1:*:*
+              - arn:aws:cloudfront::*:distribution/*
+          - Effect: Allow
+            Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: !Sub arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:/aws/lambda/*:*
+  AssumeProdPolicy:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      PolicyDocument: 
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Resource:
+              - !Sub "arn:aws:iam::${ProdAccount}:role/*"
