@@ -624,15 +624,15 @@ Resources:
     Properties:
       PolicyName: InvalidateCacheLambdaPolicy
       Roles:
-        - !Ref  InvalidateCacheLambdaRole
-      PolicyDocument: 
+        - !Ref InvalidateCacheLambdaRole
+      PolicyDocument:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Action:
               - codepipeline:PutJobFailureResult
               - codepipeline:PutJobSuccessResult
-            Resource: '*'
+            Resource: "*"
           - Effect: Allow
             Action:
               - logs:CreateLogGroup
@@ -648,7 +648,7 @@ Resources:
   AssumeProdPolicy:
     Type: "AWS::IAM::ManagedPolicy"
     Properties:
-      PolicyDocument: 
+      PolicyDocument:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
@@ -703,3 +703,21 @@ Resources:
               - kms:GenerateDataKey*
               - kms:DescribeKey
             Resource: "*"
+  DoNotStartPipelineAfterCreation:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: This rule prevents the pipeline to start immediately after creation
+      EventPattern:
+        source:
+          - aws.codepipeline
+        detail-type:
+          - CodePipeline Pipeline Execution State Change
+        resources:
+          - !Sub "arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${CrossAccCodePipeline}"
+        detail:
+          state:
+            - STARTED
+          execution-trigger:
+            trigger-type:
+              - CreatePipeline
+      State: ENABLED
