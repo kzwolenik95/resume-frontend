@@ -343,7 +343,7 @@ Resources:
                 - Name: "E2ETestArtifact"
               Configuration:
                 ProjectName: !Ref CodeBuildE2Etest
-                EnvironmentVariables: '[{"name":"CYPRESS_BASE_URL","value":"https://#{ProvisionFrontendVariables.DistributionDomainName}"}]'
+                EnvironmentVariables: '[{"name":"CYPRESS_BASE_URL","value":"https://kzwolenik.com"}]'
         - Name: PrepareChangeSet
           Actions:
             - Name: CreateChangeSetBackend
