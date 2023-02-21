@@ -6,9 +6,10 @@ Parameters:
     Description: AWS AccountNumber for production
     Type: Number
     Default: 173633330431
-  # CrossAccountRoleArn:
-  #   Type: String
-  #   Default: arn:aws:iam::173633330431:role/roles-for-multi-acc-deployment-CrossAccountRole-125MMIP2KEB8K
+  CrossAccountProdDeployerArn:
+    Type: String
+  CrossAccountRoleArn:
+    Type: String
   AdminRoleArn:
     Type: String
   FrontStackName:
@@ -329,12 +330,154 @@ Resources:
               Configuration:
                 FunctionName: !Ref InvalidateCacheLambdaFunction
                 UserParameters: '{"dist_id": "#{ProvisionFrontendVariables.DistributionId}", "object_paths": ["/*"]}'
+        - Name: E2EtestTest
+          Actions:
+            - Name: E2Etest
+              RunOrder: 1
+              ActionTypeId:
+                Owner: "AWS"
+                Category: "Test"
+                Version: "1"
+                Provider: "CodeBuild"
+              InputArtifacts:
+                - Name: "E2ETestArtifact"
+              Configuration:
+                ProjectName: !Ref CodeBuildE2Etest
+                EnvironmentVariables: '[{"name":"CYPRESS_BASE_URL","value":"https://#{ProvisionFrontendVariables.DistributionDomainName}"}]'
+        - Name: PrepareChangeSet
+          Actions:
+            - Name: CreateChangeSetBackend
+              RunOrder: 1
+              ActionTypeId:
+                Owner: "AWS"
+                Category: "Deploy"
+                Version: "1"
+                Provider: "CloudFormation"
+              InputArtifacts:
+                - Name: "BackendTemplateArtifact"
+              Configuration:
+                ChangeSetName: !Sub "${BackStackName}-change-set-prod"
+                ActionMode: CHANGE_SET_REPLACE
+                Capabilities: CAPABILITY_IAM,CAPABILITY_NAMED_IAM,CAPABILITY_AUTO_EXPAND
+                RoleArn: !Ref CrossAccountProdDeployerArn
+                StackName: !Sub "${BackStackName}-prod"
+                TemplatePath: BackendTemplateArtifact::packaged-backend-template.yml
+              RoleArn: !Ref CrossAccountRoleArn
+            - Name: CreateChangeSetFrontend
+              RunOrder: 1
+              ActionTypeId:
+                Owner: "AWS"
+                Category: "Deploy"
+                Version: "1"
+                Provider: "CloudFormation"
+              InputArtifacts:
+                - Name: "FrontendSourceArtifact"
+              Configuration:
+                ChangeSetName: !Sub "${FrontStackName}-change-set-prod"
+                ActionMode: CHANGE_SET_REPLACE
+                Capabilities: CAPABILITY_IAM,CAPABILITY_NAMED_IAM,CAPABILITY_AUTO_EXPAND
+                RoleArn: !Ref CrossAccountProdDeployerArn
+                StackName: !Sub "${FrontStackName}-prod"
+                ParameterOverrides: '{"Domain": "kzwolenik.com","EnvType": "PROD"}'
+                TemplatePath: FrontendSourceArtifact::resume_template.yaml
+              RoleArn: !Ref CrossAccountRoleArn
+            - Name: ManualApproval
+              ActionTypeId:
+                Owner: "AWS"
+                Category: "Approval"
+                Version: "1"
+                Provider: "Manual"
+              Configuration:
+                CustomData: "Please approve this change"
+        - Name: DeployProd
+          Actions:
+            - Name: ProvisionFrontend
+              Namespace: ProvisionFrontendVariablesProd
+              RunOrder: 1
+              ActionTypeId:
+                Owner: AWS
+                Category: Deploy
+                Version: "1"
+                Provider: CloudFormation
+              Configuration:
+                ActionMode: CHANGE_SET_EXECUTE
+                RoleArn: !Ref CrossAccountProdDeployerArn
+                ChangeSetName: !Sub "${FrontStackName}-change-set-prod"
+                StackName: !Sub "${FrontStackName}-prod"
+              RoleArn: !Ref CrossAccountRoleArn
+            - Name: DeployBackend
+              Namespace: DeployBackendVarsProd
+              RunOrder: 1
+              ActionTypeId:
+                Owner: AWS
+                Category: Deploy
+                Version: "1"
+                Provider: CloudFormation
+              Configuration:
+                ActionMode: CHANGE_SET_EXECUTE
+                RoleArn: !Ref CrossAccountProdDeployerArn
+                ChangeSetName: !Sub "${BackStackName}-change-set-prod"
+                StackName: !Sub "${BackStackName}-prod"
+              RoleArn: !Ref CrossAccountRoleArn
+            - Name: BuildFrontend
+              RunOrder: 2
+              ActionTypeId:
+                Owner: "AWS"
+                Category: "Build"
+                Version: "1"
+                Provider: "CodeBuild"
+              InputArtifacts:
+                - Name: "FrontendSourceArtifact"
+              OutputArtifacts:
+                - Name: "FrontendBuildArtifactProd"
+              Configuration:
+                ProjectName: !Ref CodeBuildFrontend
+                EnvironmentVariables: '[{"name":"HUGO_API_ENDPOINT","value":"#{DeployBackendVarsProd.ResumeApi}"}]'
+            - Name: DeployStaticPage
+              RunOrder: 3
+              ActionTypeId:
+                Owner: "AWS"
+                Category: "Deploy"
+                Version: "1"
+                Provider: "S3"
+              InputArtifacts:
+                - Name: "FrontendBuildArtifactProd"
+              Configuration:
+                BucketName: "#{ProvisionFrontendVariablesProd.WebBucket}"
+                Extract: "true"
+              RoleArn: !Ref CrossAccountRoleArn
+            - Name: CloudFrontCacheInvalidate
+              RunOrder: 4
+              ActionTypeId:
+                Owner: "AWS"
+                Category: "Invoke"
+                Version: "1"
+                Provider: "Lambda"
+              Configuration:
+                FunctionName: !Ref InvalidateCacheLambdaFunction
+                UserParameters: '{"dist_id": "#{ProvisionFrontendVariablesProd.DistributionId}", "object_paths": ["/*"]}'
+              RoleArn: !Ref CrossAccountRoleArn
+        - Name: E2EtestProd
+          Actions:
+            - Name: E2Etest
+              RunOrder: 1
+              ActionTypeId:
+                Owner: "AWS"
+                Category: "Test"
+                Version: "1"
+                Provider: "CodeBuild"
+              InputArtifacts:
+                - Name: "E2ETestArtifact"
+              Configuration:
+                ProjectName: !Ref CodeBuildE2Etest
+                EnvironmentVariables: '[{"name":"CYPRESS_BASE_URL","value":"https://#{ProvisionFrontendVariablesProd.DistributionDomainName}"}]'
     DependsOn:
       - CrossAccCodePipelineRolePolicy
       - ArtifactStoreBucketPolicy
       - CodeBuildFrontendPolicy
       - CodeBuildBackendPolicy
       - DoNotStartPipelineAfterCreation
+      - CodeBuildE2EtestPolicy
   CodeBuildBackend:
     Type: AWS::CodeBuild::Project
     Properties:
@@ -687,6 +830,7 @@ Resources:
                 - !Sub arn:aws:iam::${AWS::AccountId}:role/service-role/${CrossAccCodePipelineRole}
                 - !GetAtt CodeBuildBackendRole.Arn
                 - !GetAtt CodeBuildFrontendRole.Arn
+                - !GetAtt CodeBuildE2EtestRole.Arn
                 - !Sub arn:aws:iam::${ProdAccount}:root
             Action:
               - kms:Encrypt
@@ -711,3 +855,77 @@ Resources:
             trigger-type:
               - CreatePipeline
       State: ENABLED
+  CodeBuildE2EtestRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/service-role/"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: "codebuild.amazonaws.com"
+            Action: "sts:AssumeRole"
+  CodeBuildE2EtestPolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: !Sub 'CodeBuildE2EPolicy-${AWS::Region}'
+      Roles:
+        - !Ref CodeBuildE2EtestRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Resource:
+              - !Sub arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:/aws/codebuild/${CodeBuildE2Etest}
+              - !Sub arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:/aws/codebuild/${CodeBuildE2Etest}:*
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+          - Effect: Allow
+            Resource:
+              - !Sub "${ArtifactStoreBucket.Arn}"
+              - !Sub "${ArtifactStoreBucket.Arn}/*"
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:GetBucketAcl
+              - s3:GetBucketLocation
+          - Effect: Allow
+            Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Resource:
+              - !Sub "arn:aws:codebuild:us-east-1:${AWS::AccountId}:report-group/${CodeBuildE2Etest}-*"
+  CodeBuildE2Etest:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |-
+          version: 0.2
+          phases:
+            install:
+              runtime-versions:
+                nodejs: latest
+              commands:
+                - npm ci
+            pre_build:
+              commands:
+                - npm run cy:verify
+                - npm run cy:info
+            build:
+              commands:
+                - npx cypress run --browser chrome
+      ServiceRole: !GetAtt CodeBuildE2EtestRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        Image: "public.ecr.aws/cypress-io/cypress/browsers:node18.12.0-chrome107"
+        ComputeType: BUILD_GENERAL1_SMALL

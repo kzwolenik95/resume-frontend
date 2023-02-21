@@ -95,8 +95,8 @@ Resources:
         ViewerCertificate:
           !If
           - IsProduction
-          - '"AcmCertificateArn: !Ref Certificate
-            SslSupportMethod: sni-only"'
+          - AcmCertificateArn: !Ref Certificate
+            SslSupportMethod: sni-only
           - !Ref "AWS::NoValue"
         IPV6Enabled: true
     DependsOn:
