@@ -343,7 +343,7 @@ Resources:
                 - Name: "E2ETestArtifact"
               Configuration:
                 ProjectName: !Ref CodeBuildE2Etest
-                EnvironmentVariables: '[{"name":"CYPRESS_BASE_URL","value":"https://kzwolenik.com"}]'
+                EnvironmentVariables: '[{"name":"CYPRESS_BASE_URL","value":"https://#{ProvisionFrontendVariables.DistributionDomainName}"}]'
         - Name: PrepareChangeSet
           Actions:
             - Name: CreateChangeSetBackend
@@ -470,7 +470,7 @@ Resources:
                 - Name: "E2ETestArtifact"
               Configuration:
                 ProjectName: !Ref CodeBuildE2Etest
-                EnvironmentVariables: '[{"name":"CYPRESS_BASE_URL","value":"https://#{ProvisionFrontendVariablesProd.DistributionDomainName}"}]'
+                EnvironmentVariables: '[{"name":"CYPRESS_BASE_URL","value":"https://kzwolenik.com"}]'
     DependsOn:
       - CrossAccCodePipelineRolePolicy
       - ArtifactStoreBucketPolicy
