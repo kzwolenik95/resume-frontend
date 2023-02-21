@@ -287,7 +287,7 @@ Resources:
                 Provider: CloudFormation
               Configuration:
                 ActionMode: CREATE_UPDATE
-                Capabilities: CAPABILITY_NAMED_IAM
+                Capabilities: CAPABILITY_IAM,CAPABILITY_NAMED_IAM,CAPABILITY_AUTO_EXPAND
                 RoleArn: !GetAtt CloudFormationTestDeployer.Arn
                 StackName: !Sub "${BackStackName}-test"
                 TemplatePath: BackendTemplateArtifact::packaged-backend-template.yml
@@ -307,7 +307,7 @@ Resources:
               Configuration:
                 ProjectName: !Ref CodeBuildFrontend
                 EnvironmentVariables: '[{"name":"HUGO_API_ENDPOINT","value":"#{DeployBackendVars.ResumeApi}"}]'
-            - Name: "Deploy static page"
+            - Name: DeployStaticPage
               RunOrder: 4
               ActionTypeId:
                 Owner: "AWS"
@@ -317,9 +317,9 @@ Resources:
               InputArtifacts:
                 - Name: "FrontendBuildArtifact"
               Configuration:
-                BucketName: "${ProvisionFrontendVariables.WebBucket}"
+                BucketName: "#{ProvisionFrontendVariables.WebBucket}"
                 Extract: "true"
-            - Name: "CloudFront cache invalidate"
+            - Name: CloudFrontCacheInvalidate
               RunOrder: 5
               ActionTypeId:
                 Owner: "AWS"
@@ -365,9 +365,9 @@ Resources:
                 - export PYTHONPATH=${CODEBUILD_SRC_DIR}
                 - pytest tests/unit/
                 - sam package --s3-bucket $S3Bucket --region $AWS_REGION --output-template-file packaged-backend-template.yml
-            artifacts:
-              files:
-                - packaged-backend-template.yml
+          artifacts:
+            files:
+              - packaged-backend-template.yml
   CodeBuildBackendRole:
     Type: "AWS::IAM::Role"
     Properties:
@@ -390,7 +390,8 @@ Resources:
         Statement:
           - Effect: Allow
             Resource:
-              - !Sub arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:/aws/${CodeBuildBackend}/*
+              - !Sub arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:/aws/codebuild/${CodeBuildBackend}
+              - !Sub arn:aws:logs:us-east-1:${AWS::AccountId}:log-group:/aws/codebuild/${CodeBuildBackend}:*
             Action:
               - logs:CreateLogGroup
               - logs:CreateLogStream
@@ -495,24 +496,12 @@ Resources:
               - "logs:PutLogEvents"
           - Effect: Allow
             Resource:
-              - "arn:aws:s3:::codepipeline-us-east-1-*"
-            Action:
-              - "s3:PutObject"
-              - "s3:GetObject"
-              - "s3:GetObjectVersion"
-              - "s3:GetBucketAcl"
-              - "s3:GetBucketLocation"
-          - Effect: Allow
-            Resource:
-              - !Sub "arn:aws:codecommit:us-east-1:${AWS::AccountId}:${FrontendRepoName}"
-            Action:
-              - "codecommit:GitPull"
-          - Effect: Allow
-            Resource:
               - !Sub "${ArtifactStoreBucket.Arn}"
               - !Sub "${ArtifactStoreBucket.Arn}/*"
             Action:
               - "s3:PutObject"
+              - "s3:GetObject"
+              - "s3:GetObjectVersion"
               - "s3:GetBucketAcl"
               - "s3:GetBucketLocation"
           - Effect: Allow
@@ -552,7 +541,7 @@ Resources:
           cloud_front_client = boto3.client("cloudfront")
 
 
-          def lambda_handler(event):
+          def lambda_handler(event, context):
               job_id = event["CodePipeline.job"]["id"]
 
               try:
@@ -674,7 +663,7 @@ Resources:
           - Sid: Allow access for Key Administrators
             Effect: Allow
             Principal:
-              AWS: !Sub arn:aws:iam::${AWS::AccountId}:role/aws-reserved/sso.amazonaws.com/${AdminRoleArn}
+              AWS: !Ref AdminRoleArn
             Action:
               - kms:Create*
               - kms:Describe*
@@ -696,6 +685,8 @@ Resources:
             Principal:
               AWS:
                 - !Sub arn:aws:iam::${AWS::AccountId}:role/service-role/${CrossAccCodePipelineRole}
+                - !GetAtt CodeBuildBackendRole.Arn
+                - !GetAtt CodeBuildFrontendRole.Arn
                 - !Sub arn:aws:iam::${ProdAccount}:root
             Action:
               - kms:Encrypt
