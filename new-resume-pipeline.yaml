@@ -455,8 +455,7 @@ Resources:
                 Provider: "Lambda"
               Configuration:
                 FunctionName: !Ref InvalidateCacheLambdaFunction
-                UserParameters: '{"dist_id": "#{ProvisionFrontendVariablesProd.DistributionId}", "object_paths": ["/*"]}'
-              RoleArn: !Ref CrossAccountRoleArn
+                UserParameters: !Sub '{"dist_id": "#{ProvisionFrontendVariablesProd.DistributionId}", "role_arn":"${CrossAccountRoleArn}", "object_paths": ["/*"]}'
         - Name: E2EtestProd
           Actions:
             - Name: E2Etest
