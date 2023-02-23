@@ -12,9 +12,6 @@ Parameters:
   DockerImageURLBackend:
     Type: String
     Default: public.ecr.aws/sam/build-python3.9:1.72.0-20230202220736
-  # LambdaUserParameters:
-  #   Type: String
-  #   Default: '{"dist_id": "E7IZ3D710GJNR", "object_paths": ["/*"]}'
   DeployBucket:
     Type: String
     Default: "kzwolenik.com"

@@ -5,7 +5,6 @@ Parameters:
   ProdAccount:
     Description: AWS AccountNumber for production
     Type: Number
-    Default: 173633330431
   CrossAccountProdDeployerArn:
     Type: String
   CrossAccountRoleArn:
@@ -571,20 +570,6 @@ Resources:
               - codebuild:BatchPutCodeCoverages
             Resource:
               - !Sub arn:aws:codebuild:us-east-1:${AWS::AccountId}:report-group/*
-          # - Effect: "Allow"
-          #   Action:
-          #     - "lambda:*"
-          #     - "cloudwatch:*"
-          #     - "dynamodb:*"
-          #     - "sns:*"
-          #     - "resource-groups:*"
-          #     - "applicationinsights:*"
-          #     - "cloudformation:*"
-          #     - "apigateway:*"
-          #     - "logs:*"
-          #     - "iam:*"
-          #   Resource:
-          #     - "*"
   CodeBuildFrontend:
     Type: AWS::CodeBuild::Project
     Properties:
